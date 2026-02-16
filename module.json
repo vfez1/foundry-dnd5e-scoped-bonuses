@@ -33,7 +33,7 @@
       }
     ]
   },
-  "url": "https://github.com/vfez1/dnd5e-scoped-bonuses",
-  "manifest": "https://raw.githubusercontent.com/vfez1/dnd5e-scoped-bonuses/main/module.json",
-  "download": "https://github.com/vfez1/dnd5e-scoped-bonuses/archive/refs/heads/main.zip"
+  "url": "https://github.com/vfez1/foundry-dnd5e-scoped-bonuses",
+  "manifest": "https://raw.githubusercontent.com/vfez1/foundry-dnd5e-scoped-bonuses/main/module.json",
+  "download": "https://github.com/vfez1/foundry-dnd5e-scoped-bonuses/archive/refs/heads/main.zip"
 }

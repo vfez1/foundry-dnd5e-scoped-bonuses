@@ -1,0 +1,39 @@
+{
+  "id": "dnd5e-scoped-bonuses",
+  "title": "DnD5e Class-Specific Spellcasting Bonuses",
+  "description": "Adds class-specific bonuses to spell save DCs and spell attack rolls in DnD5e using Active Effects. Each bonus applies only to spells from a chosen source class, making it ideal for multiclass characters or items that enhance one spellcasting class without affecting others. Updates both roll calculations and spellcasting headers without modifying core system data.",
+  "version": "1.0.0",
+  "authors": [
+    {
+      "name": "vfez",
+      "discord": "fez#1260"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "scripts": ["scripts/main.js"],
+  "relationships": {
+    "requires": [
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "manifest": "https://github.com/ruipin/fvtt-lib-wrapper/releases/latest/download/module.json"
+      }
+    ],
+    "systems": [
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "5.0.0",
+          "verified": "5.2.5"
+        }
+      }
+    ]
+  },
+  "url": "https://github.com/vfez1/dnd5e-scoped-bonuses",
+  "manifest": "https://raw.githubusercontent.com/vfez1/dnd5e-scoped-bonuses/main/module.json",
+  "download": "https://github.com/vfez1/dnd5e-scoped-bonuses/archive/refs/heads/main.zip"
+}

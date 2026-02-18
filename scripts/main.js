@@ -1,6 +1,31 @@
 const MODULE_ID = "dnd5e-scoped-bonuses";
 
-// Map to track last logged values to prevent spam
+/* -------------------------------------------- */
+/* Constants                                    */
+/* -------------------------------------------- */
+
+const CLASS_IDENTIFIERS = [
+    "artificer",
+    "barbarian",
+    "bard",
+    "cleric",
+    "druid",
+    "fighter",
+    "monk",
+    "paladin",
+    "ranger",
+    "rogue",
+    "sorcerer",
+    "warlock",
+    "wizard",
+];
+
+const FLAG_ROOT = `flags.${MODULE_ID}.class.spell`;
+
+/* -------------------------------------------- */
+/* Logging (deduplicated)                       */
+/* -------------------------------------------- */
+
 const logCache = new Map();
 
 /**
@@ -15,11 +40,107 @@ function smartLog(actorId, key, message) {
 }
 
 /* -------------------------------------------- */
-/* Setup Wrappers                              */
+/* Utility                                      */
 /* -------------------------------------------- */
 
-Hooks.once("setup", () => {
-    // Attack Activity (early pass)
+function flagPath(type, cls) {
+    return `${FLAG_ROOT}.${type}.${cls}`;
+}
+
+function getBonusFromEffects(actor, key) {
+    let total = 0;
+
+    const actorEffects = actor.effects ?? [];
+    const itemEffects = actor.items.contents.flatMap(
+        (i) => i.effects?.contents ?? [],
+    );
+
+    for (const effect of [...actorEffects, ...itemEffects]) {
+        if (effect.disabled || effect.suppressed) continue;
+
+        for (const change of effect.changes) {
+            if (change.key === key) {
+                total += Number(change.value) || 0;
+            }
+        }
+    }
+
+    return total;
+}
+
+/* -------------------------------------------- */
+/* DAE Autocomplete Registration                */
+/* -------------------------------------------- */
+
+function registerWithDAE() {
+    const dae = game.modules.get("dae");
+    if (!dae?.active) return;
+
+    const api = dae.api;
+    if (!api) return;
+
+    const fields = [];
+
+    for (const cls of CLASS_IDENTIFIERS) {
+        const label = cls.charAt(0).toUpperCase() + cls.slice(1);
+
+        const dcKey = flagPath("dc", cls);
+        const atkKey = flagPath("attack", cls);
+
+        fields.push({ name: dcKey }, { name: atkKey });
+
+        api.localizationMap[dcKey] = {
+            name: `${label} Spell DC`,
+            description: `Bonus to spell save DC for ${label} spells`,
+        };
+
+        api.localizationMap[atkKey] = {
+            name: `${label} Spell Attack`,
+            description: `Bonus to spell attack rolls for ${label} spells`,
+        };
+    }
+
+    api.addAutoFields(fields);
+
+    console.log(
+        `${MODULE_ID} | Registered ${fields.length} DAE autocomplete keys.`,
+    );
+}
+
+/* -------------------------------------------- */
+/* Activity Bonuses                             */
+/* -------------------------------------------- */
+
+function applyActivityBonuses(activity, type) {
+    const item = activity.item ?? activity.parent;
+    const actor = item?.actor ?? item?.parent;
+
+    if (!actor || actor.type !== "character" || item?.type !== "spell") return;
+
+    const sourceClass = item.system.sourceClass?.toLowerCase();
+    if (!sourceClass) return;
+
+    const bonus = getBonusFromEffects(actor, flagPath(type, sourceClass));
+    if (!bonus) return;
+
+    if (type === "attack") {
+        const current = activity.attack?.bonus || "";
+        activity.attack.bonus = current ? `${current} + ${bonus}` : `${bonus}`;
+    }
+
+    if (type === "dc" && activity.save?.dc) {
+        activity.save.dc.value += bonus;
+    }
+
+    activity.prepareLabels?.();
+}
+
+/* -------------------------------------------- */
+/* Hooks                                        */
+/* -------------------------------------------- */
+
+Hooks.once("init", () => {
+    // Attack Activities
     libWrapper.register(
         MODULE_ID,
         "dnd5e.documents.activity.AttackActivity.prototype.prepareData",
@@ -30,7 +151,7 @@ Hooks.once("setup", () => {
         "WRAPPER",
     );
 
-    // Save Activity (late pass)
+    // Save Activities
     libWrapper.register(
         MODULE_ID,
         "dnd5e.documents.activity.SaveActivity.prototype.prepareFinalData",
@@ -41,7 +162,7 @@ Hooks.once("setup", () => {
         "WRAPPER",
     );
 
-    // Spellcasting Header (class spellbook UI)
+    // Spellcasting Header
     libWrapper.register(
         MODULE_ID,
         "CONFIG.Actor.documentClass.prototype._prepareSpellcasting",
@@ -93,70 +214,5 @@ Hooks.once("setup", () => {
     );
 });
 
-/* -------------------------------------------- */
-/* Force One-Time Derived Refresh              */
-/* -------------------------------------------- */
-
-Hooks.once("ready", async () => {
-    for (const actor of game.actors.contents) {
-        if (actor.type !== "character") continue;
-
-        await actor.update({}, { diff: false, recursive: false });
-    }
-});
-
-/* -------------------------------------------- */
-/* Activity-Level Bonus Application            */
-/* -------------------------------------------- */
-
-function applyActivityBonuses(activity, type) {
-    const item = activity.item ?? activity.parent;
-    const actor = item?.actor ?? item?.parent;
-
-    if (!actor || actor.type !== "character") return;
-    if (item?.type !== "spell") return;
-
-    const sourceClass = item.system.sourceClass?.toLowerCase();
-    if (!sourceClass) return;
-
-    const flagKey = `flags.${MODULE_ID}.class.spell.${type}.${sourceClass}`;
-
-    const bonus = getBonusFromEffects(actor, flagKey);
-    if (!bonus) return;
-
-    if (type === "attack") {
-        const current = activity.attack?.bonus || "";
-        activity.attack.bonus = current ? `${current} + ${bonus}` : `${bonus}`;
-    }
-
-    if (type === "dc" && activity.save?.dc) {
-        activity.save.dc.value += bonus;
-    }
-
-    activity.prepareLabels?.();
-}
-
-/* -------------------------------------------- */
-/* Effect Flag Aggregation                     */
-/* -------------------------------------------- */
-
-function getBonusFromEffects(actor, flagKey) {
-    let total = 0;
-
-    const actorEffects = actor.effects ?? [];
-    const itemEffects = actor.items.contents.flatMap(
-        (i) => i.effects?.contents ?? [],
-    );
-
-    for (const effect of [...actorEffects, ...itemEffects]) {
-        if (effect.disabled || effect.suppressed) continue;
-
-        for (const change of effect.changes) {
-            if (change.key === flagKey) {
-                total += Number(change.value) || 0;
-            }
-        }
-    }
-
-    return total;
-}
+// Register DAE fields once it is fully ready
+Hooks.once("DAE.setupComplete", registerWithDAE);

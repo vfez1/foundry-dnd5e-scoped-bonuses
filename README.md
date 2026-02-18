@@ -35,6 +35,7 @@ For a spell to receive the bonus, ensure its **Source Class** is set to match th
 ## ⚙️ Technical Details
 
 - **Dependencies:** `libWrapper`
+- **Recommended:** Dynamic Active Effects (DAE) for autocomplete support.
 - **Scope:** Character actors and Spell items only.
 - **Stacking:** Multiple effects stack additively.
 - **Performance:** Recalculated during data preparation; zero permanent impact on actor data.

@@ -215,4 +215,4 @@ Hooks.once("init", () => {
 });
 
 // Register DAE fields once it is fully ready
-Hooks.once("DAE.setupComplete", registerWithDAE);
+Hooks.once("dae.setupComplete", registerWithDAE);

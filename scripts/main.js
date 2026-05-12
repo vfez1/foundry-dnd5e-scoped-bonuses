@@ -56,7 +56,8 @@ function getBonusFromEffects(actor, key) {
     );
 
     for (const effect of [...actorEffects, ...itemEffects]) {
-        if (effect.disabled || effect.suppressed) continue;
+        if (effect.disabled || effect.isSuppressed || effect.active === false)
+            continue;
 
         for (const change of effect.changes) {
             if (change.key === key) {

@@ -118,7 +118,7 @@ function applyActivityBonuses(activity, type) {
 
     if (!actor || actor.type !== "character" || item?.type !== "spell") return;
 
-    const sourceClass = item.system.sourceClass?.toLowerCase();
+    const sourceClass = (item.system.sourceItem ?? item.system.sourceClass)?.toLowerCase();
     if (!sourceClass) return;
 
     const bonus = getBonusFromEffects(actor, flagPath(type, sourceClass));

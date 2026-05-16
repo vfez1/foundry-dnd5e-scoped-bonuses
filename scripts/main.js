@@ -118,7 +118,13 @@ function applyActivityBonuses(activity, type) {
 
     if (!actor || actor.type !== "character" || item?.type !== "spell") return;
 
-    const sourceClass = (item.system.sourceItem ?? item.system.sourceClass)?.toLowerCase();
+    // dnd5e 5.3 introduced `system.sourceItem` and deprecated the `system.sourceClass` getter.
+    // Feature-detect with `in` so we only read the field that the schema actually defines,
+    // staying silent on both v13/5.2.5 and v14/5.3.3.
+    const rawSource = ("sourceItem" in (item.system ?? {}))
+        ? item.system.sourceItem
+        : item.system.sourceClass;
+    const sourceClass = rawSource?.toLowerCase();
     if (!sourceClass) return;
 
     const bonus = getBonusFromEffects(actor, flagPath(type, sourceClass));

@@ -1,43 +1,6 @@
 const MODULE_ID = "dnd5e-scoped-bonuses";
 
-/* -------------------------------------------- */
-/* Constants                                    */
-/* -------------------------------------------- */
-
-const CLASS_IDENTIFIERS = [
-    "artificer",
-    "barbarian",
-    "bard",
-    "cleric",
-    "druid",
-    "fighter",
-    "monk",
-    "paladin",
-    "ranger",
-    "rogue",
-    "sorcerer",
-    "warlock",
-    "wizard",
-];
-
 const FLAG_ROOT = `flags.${MODULE_ID}.class.spell`;
-
-/* -------------------------------------------- */
-/* Logging (deduplicated)                       */
-/* -------------------------------------------- */
-
-const logCache = new Map();
-
-/**
- * Logs only when the message content changes for a specific actor/field
- */
-function smartLog(actorId, key, message) {
-    const cacheKey = `${actorId}-${key}`;
-    if (logCache.get(cacheKey) !== message) {
-        console.log(`${MODULE_ID} | ${message}`);
-        logCache.set(cacheKey, message);
-    }
-}
 
 /* -------------------------------------------- */
 /* Utility                                      */
@@ -47,17 +10,22 @@ function flagPath(type, cls) {
     return `${FLAG_ROOT}.${type}.${cls}`;
 }
 
+function normalizeScopedIdentifier(value) {
+    if (typeof value !== "string") return null;
+
+    const normalized = value.toLowerCase();
+    const stripped = normalized.includes(":") ? normalized.split(":").pop() : normalized;
+    return stripped || null;
+}
+
 function getBonusFromEffects(actor, key) {
     let total = 0;
 
     const actorEffects = actor.effects ?? [];
-    const itemEffects = actor.items.contents.flatMap(
-        (i) => i.effects?.contents ?? [],
-    );
+    const itemEffects = actor.items.contents.flatMap((i) => i.effects?.contents ?? []);
 
     for (const effect of [...actorEffects, ...itemEffects]) {
-        if (effect.disabled || effect.isSuppressed || effect.active === false)
-            continue;
+        if (effect.disabled || effect.isSuppressed || effect.active === false) continue;
 
         for (const change of effect.changes) {
             if (change.key === key) {
@@ -67,45 +35,6 @@ function getBonusFromEffects(actor, key) {
     }
 
     return total;
-}
-
-/* -------------------------------------------- */
-/* DAE Autocomplete Registration                */
-/* -------------------------------------------- */
-
-function registerWithDAE() {
-    const dae = game.modules.get("dae");
-    if (!dae?.active) return;
-
-    const api = dae.api;
-    if (!api) return;
-
-    const fields = [];
-
-    for (const cls of CLASS_IDENTIFIERS) {
-        const label = cls.charAt(0).toUpperCase() + cls.slice(1);
-
-        const dcKey = flagPath("dc", cls);
-        const atkKey = flagPath("attack", cls);
-
-        fields.push({ name: dcKey }, { name: atkKey });
-
-        api.localizationMap[dcKey] = {
-            name: `${label} Spell DC`,
-            description: `Bonus to spell save DC for ${label} spells`,
-        };
-
-        api.localizationMap[atkKey] = {
-            name: `${label} Spell Attack`,
-            description: `Bonus to spell attack rolls for ${label} spells`,
-        };
-    }
-
-    api.addAutoFields(fields);
-
-    console.log(
-        `${MODULE_ID} | Registered ${fields.length} DAE autocomplete keys.`,
-    );
 }
 
 /* -------------------------------------------- */
@@ -121,13 +50,15 @@ function applyActivityBonuses(activity, type) {
     // dnd5e 5.3 introduced `system.sourceItem` and deprecated the `system.sourceClass` getter.
     // Feature-detect with `in` so we only read the field that the schema actually defines,
     // staying silent on both v13/5.2.5 and v14/5.3.3.
-    const rawSource = ("sourceItem" in (item.system ?? {}))
-        ? item.system.sourceItem
-        : item.system.sourceClass;
-    const sourceClass = rawSource?.toLowerCase();
-    if (!sourceClass) return;
+    const rawSource = "sourceItem" in (item.system ?? {}) ? item.system.sourceItem : item.system.sourceClass;
+    const sourceClass = normalizeScopedIdentifier(rawSource);
+    const key = sourceClass ? flagPath(type, sourceClass) : null;
 
-    const bonus = getBonusFromEffects(actor, flagPath(type, sourceClass));
+    if (!sourceClass) {
+        return;
+    }
+
+    const bonus = getBonusFromEffects(actor, key);
     if (!bonus) return;
 
     if (type === "attack") {
@@ -155,7 +86,7 @@ Hooks.once("init", () => {
             wrapped(...args);
             applyActivityBonuses(this, "attack");
         },
-        "WRAPPER",
+        "WRAPPER"
     );
 
     // Save Activities
@@ -166,7 +97,7 @@ Hooks.once("init", () => {
             wrapped(...args);
             applyActivityBonuses(this, "dc");
         },
-        "WRAPPER",
+        "WRAPPER"
     );
 
     // Spellcasting Header
@@ -178,48 +109,25 @@ Hooks.once("init", () => {
 
             if (this.type !== "character") return;
 
-            for (const classItem of this.items.filter(
-                (i) => i.type === "class",
-            )) {
+            for (const classItem of this.items.filter((i) => i.type === "class")) {
                 const identifier = classItem.system.identifier?.toLowerCase();
                 const spellcasting = classItem.system.spellcasting;
 
                 if (!identifier || !spellcasting) continue;
 
-                const dcBonus = getBonusFromEffects(
-                    this,
-                    `flags.${MODULE_ID}.class.spell.dc.${identifier}`,
-                );
+                const dcBonus = getBonusFromEffects(this, `flags.${MODULE_ID}.class.spell.dc.${identifier}`);
 
-                const attackBonus = getBonusFromEffects(
-                    this,
-                    `flags.${MODULE_ID}.class.spell.attack.${identifier}`,
-                );
+                const attackBonus = getBonusFromEffects(this, `flags.${MODULE_ID}.class.spell.attack.${identifier}`);
 
                 if (dcBonus) {
-                    spellcasting.save =
-                        (Number(spellcasting.save) || 0) + dcBonus;
-                    smartLog(
-                        this.id,
-                        `${identifier}-dc`,
-                        `${this.name} ${identifier} DC +${dcBonus}`,
-                    );
+                    spellcasting.save = (Number(spellcasting.save) || 0) + dcBonus;
                 }
 
                 if (attackBonus) {
-                    spellcasting.attack =
-                        (Number(spellcasting.attack) || 0) + attackBonus;
-                    smartLog(
-                        this.id,
-                        `${identifier}-attack`,
-                        `${this.name} ${identifier} Attack +${attackBonus}`,
-                    );
+                    spellcasting.attack = (Number(spellcasting.attack) || 0) + attackBonus;
                 }
             }
         },
-        "WRAPPER",
+        "WRAPPER"
     );
 });
-
-// Register DAE fields once it is fully ready
-Hooks.once("dae.setupComplete", registerWithDAE);

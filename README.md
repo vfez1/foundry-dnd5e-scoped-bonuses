@@ -7,7 +7,7 @@ A lightweight Foundry VTT module for **D&D5e** that enables class-specific spell
 - **Class-Scoped:** Apply bonuses strictly to one class (e.g., +1 DC to Wizard spells only).
 - **UI Integration:** Automatically updates **Spellcasting Headers** in the spellbook.
 - **Non-Destructive:** Operates as a wrapper layer; does not modify your core database.
-- **Smart Logging:** Verification logs appear in the console only when values change.
+- **Current dnd5e Support:** Handles modern source-class identifiers like `class:wizard` as well as plain class names.
 
 ## 🛠️ How to Use
 
@@ -30,12 +30,13 @@ Add an Active Effect to a Character or an Item using these flag keys:
 
 For a spell to receive the bonus, ensure its **Source Class** is set to match the class name you used in the key.
 
+If your system reports a source class in the form `class:wizard`, the module normalizes it automatically.
+
 ---
 
 ## ⚙️ Technical Details
 
 - **Dependencies:** `libWrapper`
-- **Recommended:** Dynamic Active Effects (DAE) for autocomplete support.
 - **Scope:** Character actors and Spell items only.
 - **Stacking:** Multiple effects stack additively.
 - **Performance:** Recalculated during data preparation; zero permanent impact on actor data.

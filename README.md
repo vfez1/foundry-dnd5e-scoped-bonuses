@@ -45,4 +45,4 @@ If your system reports a source class in the form `class:wizard`, the module nor
 
 ✔ Class-specific DC & Attack bonuses  
 ✔ System-safe injection via libWrapper
-✔ Tested with D&D5e v5.x
+✔ Tested with D&D5e v5.x and 6.0.3 on Foundry v14
